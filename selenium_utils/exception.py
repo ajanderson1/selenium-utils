@@ -26,3 +26,15 @@ class RedirectTimeout(Exception):
 
 class NoClassFound(Exception):
     """Raised in factory in case no class has been found"""
+
+
+class MultipleExpectedConditionsMet(Exception):
+    """Raised when Multiple `Expected Conditions` are met"""
+
+
+class NoExpectedConditionsMet(Exception):
+    """Raised when none of the `Expected Conditions` are met"""
+
+
+class InvalidExpectedCondition(Exception):
+    """Raised when an invalid `Expected Conditions` is passed. This may be because it is used for locating an element by locator rather than by element directly, or vice versa."""

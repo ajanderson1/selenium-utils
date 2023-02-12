@@ -11,6 +11,17 @@ from selenium_utils import exception
 
 logger = logging.getLogger(__name__)
 
+def find_elements_multiple(driver: WebDriver, locators: list[tuple]):
+    """Return a list of WebElements found on a page from a list of locators.
+    Args:
+        driver (WebDriver)
+        locators (list[tuple]): Locators in format (identifier, locator)
+    Returns:
+        list[selenium.webdriver.remote.webelement.WebElement]
+    """
+    return [element for locator in locators for element in driver.find_elements(*locator)]
+
+
 
 def hover_over_element(driver: WebDriver, element):
     """Moves the mouse pointer to the element and hovers"""
@@ -72,6 +83,48 @@ def get_when_all_visible(driver: WebDriver, locator, wait_seconds=1):
         driver,
         wait_seconds) \
         .until(EC.visibility_of_any_elements_located(locator))
+
+
+def get_unique_element_from_possible_elements(driver: WebDriver, list_of_locators:list[tuple], ec=EC.visibility_of_element_located, wait_seconds=1,  webDriverWait=WebDriverWait):
+    """Return a unique WebElement found on a page from a list of (possible) elements, when meeting an (allowable) 'expected condition' (dafaults to: `EC.visibility_of_element_located`).
+    Raises an exception if none or more than 1 elements match criteria.
+
+    Args:
+        driver (WebDriver)
+        list_of_locators (list[tuple]): Locators in format (identifier, locator) of WebElements that may or may not satisfy the supplied `Expected Condition`
+        ec (function): Expected Condition by which to seek WebElements [EC.visibility_of_element_located, EC.invisibility_of_element_located, EC.presence_of_element_located]
+        wait_seconds (int):
+    Returns:
+        selenium.webdriver.remote.webelement.WebElement
+    Raises 
+        exception.MultipleElementsFound - if more than one element is found.
+        exception.NoSuchElementException - if no element is found.
+
+    Notes: 
+        Need read more about how find_element() works, and how whether it will return for all the `Expected Conditions` we cater.
+    """
+    if ec not in [EC.visibility_of_element_located, EC.invisibility_of_element_located, EC.presence_of_element_located]:
+        raise exception.InvalidExpectedCondition(f"Invalid `Expected Condition` ({ec}). Please choose from: `EC.visibility_of_element_located`, `EC.invisibility_of_element_located`, `EC.presence_of_element_located`")
+    
+    list_of_ecs = [ec(el) for el in list_of_locators]  # create a list of expected conditions from the list of locators
+    try:
+        webDriverWait(driver, timeout=wait_seconds).until(EC.any_of(*list_of_ecs))  # wait for any of the expected conditions to be met
+    except exceptions.TimeoutException:
+        raise exception.NoExpectedConditionsMet(f"No `Expected Conditions` were met.")
+
+    list_matched_locators = []
+    for locator in list_of_locators:
+        try:
+            list_matched_locators.append(driver.find_element(*locator))
+        except exceptions.NoSuchElementException:
+            pass  # no element was found for this locator/expected condition
+
+    if len(list_matched_locators) == 1:  # One or more elements were found for this locator. NB: Nuance is that this is the first element found, not necessarily the only element found.
+        return list_matched_locators[0]
+    elif len(list_matched_locators) == 0:  # No elements were found for this locator
+        raise exception.NoExpectedConditionsMet(f"No `Expected Conditions` were met.")
+    else:
+        raise exception.MultipleExpectedConditionsMet(f"Multiple `Expected Conditions` were met ({list_matched_locators})")
 
 
 def get_when_clickable(driver: WebDriver, locator, wait_seconds=1):
